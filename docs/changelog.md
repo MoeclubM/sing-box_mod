@@ -138,7 +138,7 @@ kTLS is now compatible with custom TLS implementations other than uTLS.
 
 **1**:
 
-On Apple platforms, Windows, and Linux (when using systemd-resolved), 
+On Apple platforms, Windows, and Linux (when using systemd-resolved),
 `local` DNS server now works with Tun inbound which overrides system DNS servers.
 
 See [Local DNS Server](/configuration/dns/server/local/).

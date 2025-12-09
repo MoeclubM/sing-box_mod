@@ -30,7 +30,7 @@ icon: material/new-box
   "tcp_fast_open": false,
   "tcp_multi_path": false,
   "udp_fragment": false,
-  
+
   "domain_resolver": "", // or {}
   "network_strategy": "",
   "network_type": [],
