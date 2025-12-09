@@ -1,3 +1,5 @@
+//go:build android && with_tailscale && with_gvisor
+
 package tailscale
 
 import (
