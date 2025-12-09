@@ -25,13 +25,15 @@ require (
 	github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cors v1.2.1
+	github.com/sagernet/cronet-go v0.0.0-20251209141152-67502c396ef4
+	github.com/sagernet/cronet-go/all v0.0.0-20251209141601-d8f29fa5b269
 	github.com/sagernet/fswatch v0.1.1
 	github.com/sagernet/gomobile v0.1.8
 	github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1
-	github.com/sagernet/quic-go v0.55.0-sing-box-mod.2
-	github.com/sagernet/sing v0.8.0-beta.6
+	github.com/sagernet/quic-go v0.57.1-sing-box-mod.1
+	github.com/sagernet/sing v0.8.0-beta.6.0.20251207063731-56fd482ce1c6
 	github.com/sagernet/sing-mux v0.3.3
-	github.com/sagernet/sing-quic v0.6.0-beta.4
+	github.com/sagernet/sing-quic v0.6.0-beta.5
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1-0.20250503051639-fcd445d33c11
@@ -45,7 +47,6 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netns v0.0.5
 	github.com/wyx2685/sing-vmess v0.0.0-20250723121437-95d5ab59ff92
-	github.com/xtls/reality v0.0.0-20250723115123-fadd8146daab
 	go.uber.org/zap v1.27.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/crypto v0.42.0
@@ -107,9 +108,27 @@ require (
 	github.com/pires/go-proxyproto v0.8.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus-community/pro-bing v0.4.0 // indirect
-	github.com/quic-go/qpack v0.5.1 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/refraction-networking/utls v1.8.0 // indirect
 	github.com/safchain/ethtool v0.3.0 // indirect
+	github.com/sagernet/cronet-go/lib/android_386 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/android_amd64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/android_arm v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/android_arm64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/darwin_amd64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/darwin_arm64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/ios_arm64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_386 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_386_musl v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_amd64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_amd64_musl v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_arm v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_arm64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_arm64_musl v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/linux_arm_musl v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/windows_386 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/windows_amd64 v0.0.0-20251209141152-67502c396ef4 // indirect
+	github.com/sagernet/cronet-go/lib/windows_arm64 v0.0.0-20251209141152-67502c396ef4 // indirect
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a // indirect
 	github.com/sagernet/nftables v0.3.0-beta.4 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
@@ -127,6 +146,7 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/u-root/uio v0.0.0-20240224005618-d2acac8f3701 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	github.com/xtls/reality v0.0.0-20250723115123-fadd8146daab // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
