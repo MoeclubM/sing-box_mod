@@ -131,6 +131,13 @@ func (d *defaultDialer) dialContext(ctx context.Context, destination M.Socksaddr
 		}
 		return nil, err
 	}
+	readWaitConn, err := badtls.NewReadWaitConn(tlsConn)
+	if err == nil {
+		return readWaitConn, nil
+	} else if err != os.ErrInvalid {
+		tlsConn.Close()
+		return nil, err
+	}
 	return tlsConn, nil
 }
 
