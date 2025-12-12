@@ -410,7 +410,6 @@ Match interface address.
 
 !!! question "Since sing-box 1.13.0"
 
-
 !!! quote ""
 
     Only supported in graphical clients on Android and Apple platforms.

@@ -66,6 +66,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
+
 	outbound.dialer = tls.NewDialer(outboundDialer, tlsConfig)
 
 	client, err := anytls.NewClient(ctx, anytls.ClientConfig{

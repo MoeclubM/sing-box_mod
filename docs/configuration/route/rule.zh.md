@@ -407,7 +407,6 @@ icon: material/new-box
 
 !!! question "自 sing-box 1.13.0 起"
 
-
 !!! quote ""
 
     仅在 Android 与 Apple 平台图形客户端中支持。
