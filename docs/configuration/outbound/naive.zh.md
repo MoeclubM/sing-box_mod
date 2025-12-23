@@ -1,6 +1,8 @@
-!!! quote "sing-box 1.13.0 中的更改"
+---
+icon: material/new-box
+---
 
-    :material-plus: 初始版本
+!!! question "自 sing-box 1.13.0 起"
 
 ### 结构
 
@@ -15,15 +17,34 @@
   "password": "password",
   "insecure_concurrency": 0,
   "extra_headers": {},
+  "udp_over_tcp": false | {},
+  "quic": false,
+  "quic_congestion_control": "",
   "tls": {},
 
   ... // 拨号字段
 }
 ```
 
-!!! warning ""
+!!! warning "平台支持"
 
-    NaiveProxy 出站仅在 Apple 平台、Android、Windows 和部分架构的 Linux 上可用，参阅 [从源代码构建](/zh/installation/build-from-source/#with_naive_outbound)。
+    NaiveProxy 出站仅在 Apple 平台、Android、Windows 和特定 Linux 构建上可用。
+
+    **官方发布版本区别：**
+
+    | 构建变体      | 平台                     | 说明                                       |
+    |-----------|------------------------|------------------------------------------|
+    | (默认)      | Linux amd64/arm64      | purego 构建，包含 `libcronet.so`              |
+    | `-glibc`  | Linux 386/amd64/arm/arm64 | CGO 构建，动态链接 glibc，要求 glibc >= 2.31       |
+    | `-musl`   | Linux 386/amd64/arm/arm64 | CGO 构建，静态链接 musl，无系统要求                   |
+    | (默认)      | Windows amd64/arm64 | purego 构建，包含 `libcronet.dll`             |
+
+    **运行时要求：**
+
+    - **Linux purego**：`libcronet.so` 必须位于 sing-box 二进制文件相同目录或系统库路径中
+    - **Windows**：`libcronet.dll` 必须位于 `sing-box.exe` 相同目录或 `PATH` 中的任意目录
+
+    自行构建请参阅 [从源代码构建](/zh/installation/build-from-source/#with_naive_outbound)。
 
 ### 字段
 
@@ -55,13 +76,38 @@
 
 HTTP 请求中发送的额外头部。
 
+#### udp_over_tcp
+
+UDP over TCP 配置。
+
+参阅 [UDP Over TCP](/zh/configuration/shared/udp-over-tcp/)。
+
+#### quic
+
+使用 QUIC 代替 HTTP/2。
+
+#### quic_congestion_control
+
+QUIC 拥塞控制算法。
+
+| 算法 | 描述 |
+|------|------|
+| `bbr` | BBR |
+| `bbr2` | BBRv2 |
+| `cubic` | CUBIC |
+| `reno` | New Reno |
+
+默认使用 `bbr`（NaiveProxy 基于的 Chromium 使用的 QUICHE 的默认值）。
+
 #### tls
 
 ==必填==
 
 TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
 
-只有 `server_name`、`certificate`、`certificate_path` 和 `certificate_public_key_sha256` 是被支持的。
+只有 `server_name`、`certificate`、`certificate_path` 和 `ech` 是被支持的。
+
+自签名证书会显著改变流量行为，违背了 NaiveProxy 旨在抵抗流量分析的设计初衷，不应该在生产环境中使用。
 
 ### 拨号字段
 
