@@ -463,9 +463,14 @@ func (t *Endpoint) PrepareConnection(network string, source M.Socksaddr, destina
 		Network:     network,
 		Source:      source,
 		Destination: destination,
-	}, routeContext, timeout)
+	}, routeContext, timeout, false)
 	if err != nil {
-		if !rule.IsRejected(err) {
+		switch {
+		case rule.IsBypassed(err):
+			t.logger.Trace("bypass ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+		case rule.IsRejected(err):
+			t.logger.Trace("reject ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+		default:
 			t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
 		}
 	}

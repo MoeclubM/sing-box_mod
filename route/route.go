@@ -267,7 +267,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	return nil
 }
 
-func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
+func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration, supportBypass bool) (tun.DirectRouteDestination, error) {
 	selectedRule, _, _, _, err := r.matchRule(r.ctx, &metadata, true, nil, nil)
 	if err != nil {
 		return nil, err
