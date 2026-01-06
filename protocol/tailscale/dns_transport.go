@@ -1,3 +1,5 @@
+//go:build with_tailscale
+
 package tailscale
 
 import (
