@@ -144,11 +144,13 @@ func (w *Endpoint) PrepareConnection(network string, source M.Socksaddr, destina
 	if err != nil {
 		switch {
 		case rule.IsBypassed(err):
-			w.logger.Trace("bypass ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+			err = nil
 		case rule.IsRejected(err):
 			w.logger.Trace("reject ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
 		default:
-			w.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+			if network == N.NetworkICMP {
+				w.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+			}
 		}
 	}
 	return routeDestination, err

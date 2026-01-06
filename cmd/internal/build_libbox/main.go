@@ -60,8 +60,8 @@ func init() {
 	if err != nil {
 		currentTag = "unknown"
 	}
-	sharedFlags = append(sharedFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -s -w -buildid=  -checklinkname=0")
-	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -checklinkname=0")
+	sharedFlags = append(sharedFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid=  -checklinkname=0")
+	debugFlags = append(debugFlags, "-ldflags", "-X github.com/sagernet/sing-box/constant.Version="+currentTag+" -X internal/godebug.defaultGODEBUG=multipathtcp=0 -checklinkname=0")
 
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_naive_outbound", "with_clash_api", "with_conntrack", "badlinkname", "tfogo_checklinkname0")
 	darwinTags = append(darwinTags, "with_dhcp")
@@ -121,6 +121,7 @@ func buildAndroidVariant(config AndroidBuildConfig, bindTarget string) {
 	args := []string{
 		"bind",
 		"-v",
+		"-o", config.OutputName,
 		"-target", bindTarget,
 		"-androidapi", strconv.Itoa(config.AndroidAPI),
 		"-javapkg=io.nekohasekai",
@@ -142,14 +143,6 @@ func buildAndroidVariant(config AndroidBuildConfig, bindTarget string) {
 	err := command.Run()
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	const generatedName = "libbox.aar"
-	if config.OutputName != generatedName {
-		err = os.Rename(generatedName, config.OutputName)
-		if err != nil {
-			log.Fatal(E.Cause(err, "rename output"))
-		}
 	}
 
 	copyPath := filepath.Join("..", "sing-box-for-android", "app", "libs")
@@ -212,9 +205,7 @@ func buildApple() {
 		"-tags-not-macos=with_low_memory",
 	}
 	if !withTailscale {
-		args = append(args, "-tags-macos="+strings.Join(append(darwinTags, memcTags...), ","))
-	} else {
-		args = append(args, "-tags-macos="+strings.Join(darwinTags, ","))
+		args = append(args, "-tags-macos="+strings.Join(memcTags, ","))
 	}
 
 	if !debugEnabled {
@@ -223,7 +214,7 @@ func buildApple() {
 		args = append(args, debugFlags...)
 	}
 
-	tags := sharedTags
+	tags := append(sharedTags, darwinTags...)
 	if withTailscale {
 		tags = append(tags, memcTags...)
 	}

@@ -182,6 +182,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if outputMark == 0 {
 		outputMark = tun.DefaultAutoRedirectOutputMark
 	}
+	resetMark := uint32(options.AutoRedirectResetMark)
+	if resetMark == 0 {
+		resetMark = tun.DefaultAutoRedirectResetMark
+	}
+	nfQueue := options.AutoRedirectNFQueue
+	if nfQueue == 0 {
+		nfQueue = tun.DefaultAutoRedirectNFQueue
+	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	multiPendingPackets := C.IsDarwin && ((options.Stack == "gvisor" && tunMTU < 32768) || (options.Stack != "gvisor" && options.MTU <= 9000))
 	inbound := &Inbound{
@@ -202,6 +210,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			IPRoute2RuleIndex:        ruleIndex,
 			AutoRedirectInputMark:    inputMark,
 			AutoRedirectOutputMark:   outputMark,
+			AutoRedirectResetMark:    resetMark,
+			AutoRedirectNFQueue:      nfQueue,
 			ExcludeMPTCP:             options.ExcludeMPTCP,
 			Inet4LoopbackAddress:     common.Filter(options.LoopbackAddress, netip.Addr.Is4),
 			Inet6LoopbackAddress:     common.Filter(options.LoopbackAddress, netip.Addr.Is6),
@@ -470,15 +480,17 @@ func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destinat
 		Source:         source,
 		Destination:    destination,
 		InboundOptions: t.inboundOptions,
-	}, routeContext, timeout, true)
+	}, routeContext, timeout, false)
 	if err != nil {
 		switch {
 		case rule.IsBypassed(err):
-			t.logger.Trace("bypass ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
+			err = nil
 		case rule.IsRejected(err):
 			t.logger.Trace("reject ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
 		default:
-			t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+			if network == N.NetworkICMP {
+				t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
+			}
 		}
 	}
 	return routeDestination, err
@@ -560,5 +572,5 @@ func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn
 }
 
 func (t *autoRedirectHandler) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
-	panic("unexpected")
+	panic("unexcepted")
 }
