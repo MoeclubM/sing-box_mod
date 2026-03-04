@@ -1,4 +1,4 @@
-//go:build with_tailscale && !android
+//go:build !android
 
 package tailscale
 

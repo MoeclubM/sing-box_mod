@@ -30,8 +30,6 @@ type Router interface {
 	NeighborResolver() NeighborResolver
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
-	//for v2bx
-	GetCtx() context.Context
 }
 
 type ConnectionTracker interface {

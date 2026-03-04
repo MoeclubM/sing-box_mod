@@ -1,5 +1,3 @@
-//go:build with_tailscale
-
 package derp
 
 import (

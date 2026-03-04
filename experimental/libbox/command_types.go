@@ -3,6 +3,7 @@ package libbox
 import (
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing-box/daemon"
 	M "github.com/sagernet/sing/common/metadata"
@@ -31,11 +32,11 @@ type OutboundGroup struct {
 	Selectable bool
 	Selected   string
 	IsExpand   bool
-	ItemList   []*OutboundGroupItem
+	itemList   []*OutboundGroupItem
 }
 
 func (g *OutboundGroup) GetItems() OutboundGroupItemIterator {
-	return newIterator(g.ItemList)
+	return newIterator(g.itemList)
 }
 
 type OutboundGroupIterator interface {
@@ -61,12 +62,119 @@ const (
 	ConnectionStateClosed
 )
 
+const (
+	ConnectionEventNew = iota
+	ConnectionEventUpdate
+	ConnectionEventClosed
+)
+
+const (
+	closedConnectionMaxAge = int64((5 * time.Minute) / time.Millisecond)
+)
+
+type ConnectionEvent struct {
+	Type          int32
+	ID            string
+	Connection    *Connection
+	UplinkDelta   int64
+	DownlinkDelta int64
+	ClosedAt      int64
+}
+
+type ConnectionEvents struct {
+	Reset  bool
+	events []*ConnectionEvent
+}
+
+func (c *ConnectionEvents) Iterator() ConnectionEventIterator {
+	return newIterator(c.events)
+}
+
+type ConnectionEventIterator interface {
+	Next() *ConnectionEvent
+	HasNext() bool
+}
+
 type Connections struct {
-	input    []Connection
-	filtered []Connection
+	connectionMap map[string]*Connection
+	input         []Connection
+	filtered      []Connection
+	filterState   int32
+	filterApplied bool
+}
+
+func NewConnections() *Connections {
+	return &Connections{
+		connectionMap: make(map[string]*Connection),
+	}
+}
+
+func (c *Connections) ApplyEvents(events *ConnectionEvents) {
+	if events == nil {
+		return
+	}
+	if events.Reset {
+		c.connectionMap = make(map[string]*Connection)
+	}
+
+	for _, event := range events.events {
+		switch event.Type {
+		case ConnectionEventNew:
+			if event.Connection != nil {
+				conn := *event.Connection
+				c.connectionMap[event.ID] = &conn
+			}
+		case ConnectionEventUpdate:
+			if conn, ok := c.connectionMap[event.ID]; ok {
+				conn.Uplink = event.UplinkDelta
+				conn.Downlink = event.DownlinkDelta
+				conn.UplinkTotal += event.UplinkDelta
+				conn.DownlinkTotal += event.DownlinkDelta
+			}
+		case ConnectionEventClosed:
+			if event.Connection != nil {
+				conn := *event.Connection
+				conn.ClosedAt = event.ClosedAt
+				conn.Uplink = 0
+				conn.Downlink = 0
+				c.connectionMap[event.ID] = &conn
+				continue
+			}
+			if conn, ok := c.connectionMap[event.ID]; ok {
+				conn.ClosedAt = event.ClosedAt
+				conn.Uplink = 0
+				conn.Downlink = 0
+			}
+		}
+	}
+
+	c.evictClosedConnections(time.Now().UnixMilli())
+	c.input = c.input[:0]
+	for _, conn := range c.connectionMap {
+		c.input = append(c.input, *conn)
+	}
+	if c.filterApplied {
+		c.FilterState(c.filterState)
+	} else {
+		c.filtered = c.filtered[:0]
+		c.filtered = append(c.filtered, c.input...)
+	}
+}
+
+func (c *Connections) evictClosedConnections(nowMilliseconds int64) {
+	for id, conn := range c.connectionMap {
+		if conn.ClosedAt == 0 {
+			continue
+		}
+		if nowMilliseconds-conn.ClosedAt > closedConnectionMaxAge {
+			delete(c.connectionMap, id)
+		}
+	}
 }
 
 func (c *Connections) FilterState(state int32) {
+	c.filterApplied = true
+	c.filterState = state
 	c.filtered = c.filtered[:0]
 	switch state {
 	case ConnectionStateAll:
@@ -159,12 +267,12 @@ type Connection struct {
 	Rule          string
 	Outbound      string
 	OutboundType  string
-	ChainList     []string
+	chainList     []string
 	ProcessInfo   *ProcessInfo
 }
 
 func (c *Connection) Chain() StringIterator {
-	return newIterator(c.ChainList)
+	return newIterator(c.chainList)
 }
 
 func (c *Connection) DisplayDestination() string {
@@ -184,7 +292,7 @@ type ConnectionIterator interface {
 	HasNext() bool
 }
 
-func StatusMessageFromGRPC(status *daemon.Status) *StatusMessage {
+func statusMessageFromGRPC(status *daemon.Status) *StatusMessage {
 	if status == nil {
 		return nil
 	}
@@ -201,7 +309,7 @@ func StatusMessageFromGRPC(status *daemon.Status) *StatusMessage {
 	}
 }
 
-func OutboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator {
+func outboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator {
 	if groups == nil || len(groups.Group) == 0 {
 		return newIterator([]*OutboundGroup{})
 	}
@@ -215,7 +323,7 @@ func OutboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator 
 			IsExpand:   g.IsExpand,
 		}
 		for _, item := range g.Items {
-			libboxGroup.ItemList = append(libboxGroup.ItemList, &OutboundGroupItem{
+			libboxGroup.itemList = append(libboxGroup.itemList, &OutboundGroupItem{
 				Tag:          item.Tag,
 				Type:         item.Type,
 				URLTestTime:  item.UrlTestTime,
@@ -227,7 +335,7 @@ func OutboundGroupIteratorFromGRPC(groups *daemon.Groups) OutboundGroupIterator 
 	return newIterator(libboxGroups)
 }
 
-func ConnectionFromGRPC(conn *daemon.Connection) Connection {
+func connectionFromGRPC(conn *daemon.Connection) Connection {
 	var processInfo *ProcessInfo
 	if conn.ProcessInfo != nil {
 		processInfo = &ProcessInfo{
@@ -259,23 +367,45 @@ func ConnectionFromGRPC(conn *daemon.Connection) Connection {
 		Rule:          conn.Rule,
 		Outbound:      conn.Outbound,
 		OutboundType:  conn.OutboundType,
-		ChainList:     conn.ChainList,
+		chainList:     conn.ChainList,
 		ProcessInfo:   processInfo,
 	}
 }
 
-func ConnectionsFromGRPC(connections *daemon.Connections) []Connection {
-	if connections == nil || len(connections.Connections) == 0 {
+func connectionEventFromGRPC(event *daemon.ConnectionEvent) *ConnectionEvent {
+	if event == nil {
 		return nil
 	}
-	var libboxConnections []Connection
-	for _, conn := range connections.Connections {
-		libboxConnections = append(libboxConnections, ConnectionFromGRPC(conn))
+	libboxEvent := &ConnectionEvent{
+		Type:          int32(event.Type),
+		ID:            event.Id,
+		UplinkDelta:   event.UplinkDelta,
+		DownlinkDelta: event.DownlinkDelta,
+		ClosedAt:      event.ClosedAt,
 	}
-	return libboxConnections
+	if event.Connection != nil {
+		conn := connectionFromGRPC(event.Connection)
+		libboxEvent.Connection = &conn
+	}
+	return libboxEvent
 }
 
-func SystemProxyStatusFromGRPC(status *daemon.SystemProxyStatus) *SystemProxyStatus {
+func connectionEventsFromGRPC(events *daemon.ConnectionEvents) *ConnectionEvents {
+	if events == nil {
+		return nil
+	}
+	libboxEvents := &ConnectionEvents{
+		Reset: events.Reset_,
+	}
+	for _, event := range events.Events {
+		if libboxEvent := connectionEventFromGRPC(event); libboxEvent != nil {
+			libboxEvents.events = append(libboxEvents.events, libboxEvent)
+		}
+	}
+	return libboxEvents
+}
+
+func systemProxyStatusFromGRPC(status *daemon.SystemProxyStatus) *SystemProxyStatus {
 	if status == nil {
 		return nil
 	}
@@ -285,7 +415,7 @@ func SystemProxyStatusFromGRPC(status *daemon.SystemProxyStatus) *SystemProxySta
 	}
 }
 
-func SystemProxyStatusToGRPC(status *SystemProxyStatus) *daemon.SystemProxyStatus {
+func systemProxyStatusToGRPC(status *SystemProxyStatus) *daemon.SystemProxyStatus {
 	if status == nil {
 		return nil
 	}

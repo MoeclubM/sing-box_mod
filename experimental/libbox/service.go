@@ -126,6 +126,9 @@ func (w *platformInterfaceWrapper) NetworkInterfaces() ([]adapter.NetworkInterfa
 			Constrained: isDefault && w.isConstrained,
 		})
 	}
+	interfaces = common.UniqBy(interfaces, func(it adapter.NetworkInterface) string {
+		return it.Name
+	})
 	return interfaces, nil
 }
 
@@ -166,7 +169,6 @@ func (w *platformInterfaceWrapper) UsePlatformConnectionOwnerFinder() bool {
 }
 
 func (w *platformInterfaceWrapper) FindConnectionOwner(request *adapter.FindConnectionOwnerRequest) (*adapter.ConnectionOwner, error) {
-	var uid int32
 	if w.useProcFS {
 		var source netip.AddrPort
 		var destination netip.AddrPort
@@ -185,21 +187,24 @@ func (w *platformInterfaceWrapper) FindConnectionOwner(request *adapter.FindConn
 			return nil, E.New("unknown protocol: ", request.IpProtocol)
 		}
 
-		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
+		uid := procfs.ResolveSocketByProcSearch(network, source, destination)
 		if uid == -1 {
 			return nil, E.New("procfs: not found")
 		}
-	} else {
-		var err error
-		uid, err = w.iif.FindConnectionOwner(request.IpProtocol, request.SourceAddress, request.SourcePort, request.DestinationAddress, request.DestinationPort)
-		if err != nil {
-			return nil, err
-		}
+		return &adapter.ConnectionOwner{
+			UserId: uid,
+		}, nil
 	}
-	packageName, _ := w.iif.PackageNameByUid(uid)
+
+	result, err := w.iif.FindConnectionOwner(request.IpProtocol, request.SourceAddress, request.SourcePort, request.DestinationAddress, request.DestinationPort)
+	if err != nil {
+		return nil, err
+	}
 	return &adapter.ConnectionOwner{
-		UserId:             uid,
-		AndroidPackageName: packageName,
+		UserId:             result.UserId,
+		UserName:           result.UserName,
+		ProcessPath:        result.ProcessPath,
+		AndroidPackageName: result.AndroidPackageName,
 	}, nil
 }
 
@@ -213,6 +218,43 @@ func (w *platformInterfaceWrapper) UsePlatformNotification() bool {
 
 func (w *platformInterfaceWrapper) SendNotification(notification *adapter.Notification) error {
 	return w.iif.SendNotification((*Notification)(notification))
+}
+
+func (w *platformInterfaceWrapper) UsePlatformNeighborResolver() bool {
+	return true
+}
+
+func (w *platformInterfaceWrapper) StartNeighborMonitor(listener adapter.NeighborUpdateListener) error {
+	return w.iif.StartNeighborMonitor(&neighborUpdateListenerWrapper{listener: listener})
+}
+
+func (w *platformInterfaceWrapper) CloseNeighborMonitor(listener adapter.NeighborUpdateListener) error {
+	return w.iif.CloseNeighborMonitor(nil)
+}
+
+type neighborUpdateListenerWrapper struct {
+	listener adapter.NeighborUpdateListener
+}
+
+func (w *neighborUpdateListenerWrapper) UpdateNeighborTable(entries NeighborEntryIterator) {
+	var result []adapter.NeighborEntry
+	for entries.HasNext() {
+		entry := entries.Next()
+		address, err := netip.ParseAddr(entry.Address)
+		if err != nil {
+			continue
+		}
+		macAddress, err := net.ParseMAC(entry.MACAddress)
+		if err != nil {
+			continue
+		}
+		result = append(result, adapter.NeighborEntry{
+			Address:    address,
+			MACAddress: macAddress,
+			Hostname:   entry.Hostname,
+		})
+	}
+	w.listener.UpdateNeighborTable(result)
 }
 
 func AvailablePort(startPort int32) (int32, error) {
