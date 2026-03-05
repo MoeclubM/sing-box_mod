@@ -30,6 +30,8 @@ type Router interface {
 	NeighborResolver() NeighborResolver
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
+	// Keep compatibility for V2bX integration.
+	GetCtx() context.Context
 }
 
 type ConnectionTracker interface {
