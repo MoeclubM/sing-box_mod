@@ -3,19 +3,14 @@ name: Build Linux Packages
 on:
   #push:
   #  branches:
-  #    - main-next
-  #    - dev-next
+  #    - stable
+  #    - testing
   workflow_dispatch:
     inputs:
       version:
         description: "Version name"
         required: true
         type: string
-      forceBeta:
-        description: "Force beta"
-        required: false
-        type: boolean
-        default: false
   release:
     types:
       - published
@@ -34,7 +29,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.7
+          go-version: ~1.25.8
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -77,7 +72,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.7
+          go-version: ~1.25.8
       - name: Clone cronet-go
         if: matrix.naive
         run: |
@@ -167,14 +162,8 @@ jobs:
       - name: Set mtime
         run: |-
           TZ=UTC touch -t '197001010000' dist/sing-box
-      - name: Set name
-        if: (! contains(needs.calculate_version.outputs.version, '-')) && !inputs.forceBeta
-        run: |-
-          echo "NAME=sing-box" >> "$GITHUB_ENV"
-      - name: Set beta name
-        if: contains(needs.calculate_version.outputs.version, '-') || inputs.forceBeta
-        run: |-
-          echo "NAME=sing-box-beta" >> "$GITHUB_ENV"
+      - name: Detect track
+        run: bash .github/detect_track.sh
       - name: Set version
         run: |-
           PKG_VERSION="${{ needs.calculate_version.outputs.version }}"

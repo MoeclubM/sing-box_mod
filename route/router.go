@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/process"
@@ -12,8 +13,11 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/task"
+	"github.com/sagernet/sing/contrab/freelru"
+	"github.com/sagernet/sing/contrab/maphash"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
 )
@@ -37,6 +41,7 @@ type Router struct {
 	ruleSetMap        map[string]adapter.RuleSet
 	processSearcher   process.Searcher
 	neighborResolver  adapter.NeighborResolver
+	processCache      freelru.Cache[processCacheKey, processCacheEntry]
 	pauseManager      pause.Manager
 	trackers          []adapter.ConnectionTracker
 	platformInterface adapter.PlatformInterface
@@ -148,6 +153,11 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			}
 		}
 		r.needFindNeighbor = needFindNeighbor
+		if r.processSearcher != nil {
+			processCache := common.Must1(freelru.NewSharded[processCacheKey, processCacheEntry](256, maphash.NewHasher[processCacheKey]().Hash32))
+			processCache.SetLifetime(200 * time.Millisecond)
+			r.processCache = processCache
+		}
 		if needFindNeighbor {
 			if r.platformInterface != nil && r.platformInterface.UsePlatformNeighborResolver() {
 				monitor.Start("initialize neighbor resolver")
@@ -227,6 +237,13 @@ func (r *Router) Close() error {
 		monitor.Start("close rule-set[", i, "]")
 		err = E.Append(err, ruleSet.Close(), func(err error) error {
 			return E.Cause(err, "close rule-set[", i, "]")
+		})
+		monitor.Finish()
+	}
+	if r.processSearcher != nil {
+		monitor.Start("close process searcher")
+		err = E.Append(err, r.processSearcher.Close(), func(err error) error {
+			return E.Cause(err, "close process searcher")
 		})
 		monitor.Finish()
 	}
