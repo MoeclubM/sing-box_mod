@@ -35,12 +35,9 @@ type Router struct {
 	network           adapter.NetworkManager
 	rules             []adapter.Rule
 	needFindProcess   bool
-	needFindNeighbor  bool
-	leaseFiles        []string
 	ruleSets          []adapter.RuleSet
 	ruleSetMap        map[string]adapter.RuleSet
 	processSearcher   process.Searcher
-	neighborResolver  adapter.NeighborResolver
 	processCache      freelru.Cache[processCacheKey, processCacheEntry]
 	pauseManager      pause.Manager
 	trackers          []adapter.ConnectionTracker
@@ -61,8 +58,6 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		rules:             make([]adapter.Rule, 0, len(options.Rules)),
 		ruleSetMap:        make(map[string]adapter.RuleSet),
 		needFindProcess:   hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
-		needFindNeighbor:  hasRule(options.Rules, isNeighborRule) || hasDNSRule(dnsOptions.Rules, isNeighborDNSRule) || options.FindNeighbor,
-		leaseFiles:        options.DHCPLeaseFiles,
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
 	}
@@ -122,7 +117,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		}
 		r.network.Initialize(r.ruleSets)
 		needFindProcess := r.needFindProcess
-		needFindNeighbor := r.needFindNeighbor
 		for _, ruleSet := range r.ruleSets {
 			metadata := ruleSet.Metadata()
 			if metadata.ContainsProcessRule {
@@ -152,41 +146,10 @@ func (r *Router) Start(stage adapter.StartStage) error {
 				}
 			}
 		}
-		r.needFindNeighbor = needFindNeighbor
 		if r.processSearcher != nil {
 			processCache := common.Must1(freelru.NewSharded[processCacheKey, processCacheEntry](256, maphash.NewHasher[processCacheKey]().Hash32))
 			processCache.SetLifetime(200 * time.Millisecond)
 			r.processCache = processCache
-		}
-		if needFindNeighbor {
-			if r.platformInterface != nil && r.platformInterface.UsePlatformNeighborResolver() {
-				monitor.Start("initialize neighbor resolver")
-				resolver := newPlatformNeighborResolver(r.logger, r.platformInterface)
-				err := resolver.Start()
-				monitor.Finish()
-				if err != nil {
-					r.logger.Error(E.Cause(err, "start neighbor resolver"))
-				} else {
-					r.neighborResolver = resolver
-				}
-			}
-			if r.neighborResolver == nil {
-				monitor.Start("initialize neighbor resolver")
-				resolver, err := newNeighborResolver(r.logger, r.leaseFiles)
-				monitor.Finish()
-				if err != nil {
-					if err != os.ErrInvalid {
-						r.logger.Error(E.Cause(err, "create neighbor resolver"))
-					}
-				} else {
-					err = resolver.Start()
-					if err != nil {
-						r.logger.Error(E.Cause(err, "start neighbor resolver"))
-					} else {
-						r.neighborResolver = resolver
-					}
-				}
-			}
 		}
 	case adapter.StartStatePostStart:
 		for i, rule := range r.rules {
@@ -219,13 +182,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 func (r *Router) Close() error {
 	monitor := taskmonitor.New(r.logger, C.StopTimeout)
 	var err error
-	if r.neighborResolver != nil {
-		monitor.Start("close neighbor resolver")
-		err = E.Append(err, r.neighborResolver.Close(), func(closeErr error) error {
-			return E.Cause(closeErr, "close neighbor resolver")
-		})
-		monitor.Finish()
-	}
 	for i, rule := range r.rules {
 		monitor.Start("close rule[", i, "]")
 		err = E.Append(err, rule.Close(), func(err error) error {
@@ -265,14 +221,6 @@ func (r *Router) AppendTracker(tracker adapter.ConnectionTracker) {
 
 func (r *Router) NeedFindProcess() bool {
 	return r.needFindProcess
-}
-
-func (r *Router) NeedFindNeighbor() bool {
-	return r.needFindNeighbor
-}
-
-func (r *Router) NeighborResolver() adapter.NeighborResolver {
-	return r.neighborResolver
 }
 
 func (r *Router) ResetNetwork() {

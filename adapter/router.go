@@ -26,12 +26,8 @@ type Router interface {
 	RuleSet(tag string) (RuleSet, bool)
 	Rules() []Rule
 	NeedFindProcess() bool
-	NeedFindNeighbor() bool
-	NeighborResolver() NeighborResolver
 	AppendTracker(tracker ConnectionTracker)
 	ResetNetwork()
-	// Keep compatibility for V2bX integration.
-	GetCtx() context.Context
 }
 
 type ConnectionTracker interface {
