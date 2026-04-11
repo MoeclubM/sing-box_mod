@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"strings"
-	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -36,7 +35,6 @@ type Inbound struct {
 	logger    logger.ContextLogger
 	listener  *listener.Listener
 	service   *anytls.Service
-	userconns sync.Map
 	uuidlist  []string
 }
 
@@ -83,7 +81,6 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	for _, user := range options.Users {
 		uuidlist = append(uuidlist, user.Name)
 	}
-	inbound.userconns = sync.Map{}
 	inbound.uuidlist = uuidlist
 	return inbound, nil
 }
@@ -115,10 +112,6 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 		}
 		conn = tlsConn
 	}
-	h.userconns.Store(conn, metadata.User)
-	onClose = N.AppendClose(onClose, func(err error) {
-		h.userconns.Delete(conn)
-	})
 	err := h.service.NewConnection(adapter.WithContext(ctx, &metadata), conn, metadata.Source, onClose)
 	if err != nil {
 		N.CloseOnHandshakeFailure(conn, onClose, err)

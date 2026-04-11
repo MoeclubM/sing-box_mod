@@ -1,8 +1,6 @@
 package anytls
 
 import (
-	"net"
-
 	anytls "github.com/anytls/sing-anytls"
 	"github.com/sagernet/sing-box/option"
 )
@@ -27,13 +25,6 @@ func (h *Inbound) DelUsers(names []string) error {
 	toDelete := make(map[string]struct{})
 	for _, name := range names {
 		toDelete[name] = struct{}{}
-		h.userconns.Range(func(key, value interface{}) bool {
-			if value.(string) == name {
-				key.(net.Conn).Close()
-				h.userconns.Delete(key)
-			}
-			return true
-		})
 	}
 
 	remaining := make([]string, 0, len(h.uuidlist))

@@ -1,8 +1,6 @@
 package trojan
 
 import (
-	"net"
-
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 )
@@ -19,13 +17,6 @@ func (h *Inbound) AddUsers(users []option.TrojanUser) error {
 func (h *Inbound) DelUsers(names []string) error {
 	nameMap := make(map[string]struct{}, len(names))
 	for _, name := range names {
-		h.userconns.Range(func(key, value interface{}) bool {
-			if value.(string) == name {
-				key.(net.Conn).Close()
-				h.userconns.Delete(key)
-			}
-			return true
-		})
 		nameMap[name] = struct{}{}
 	}
 	filteredUsers := make([]option.TrojanUser, 0, len(h.users))

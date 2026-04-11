@@ -266,7 +266,6 @@ func (n *Inbound) AddUsers(users []auth.User) error {
 	}
 
 	n.users = merged
-	n.options.Users = merged
 	n.authenticator.Store(auth.NewAuthenticator(merged))
 	return nil
 }
@@ -293,7 +292,6 @@ func (n *Inbound) DelUsers(usernames []string) error {
 	}
 
 	n.users = kept
-	n.options.Users = kept
 	n.authenticator.Store(auth.NewAuthenticator(kept))
 	return nil
 }

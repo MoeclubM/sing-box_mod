@@ -1,8 +1,6 @@
 package vless
 
 import (
-	"net"
-
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 )
@@ -25,13 +23,6 @@ func (h *Inbound) AddUsers(users []option.VLESSUser) error {
 func (h *Inbound) DelUsers(names []string) error {
 	toDelete := make(map[string]struct{})
 	for _, name := range names {
-		h.userconns.Range(func(key, value interface{}) bool {
-			if value.(string) == name {
-				key.(net.Conn).Close()
-				h.userconns.Delete(key)
-			}
-			return true
-		})
 		toDelete[name] = struct{}{}
 	}
 	remaining := make([]option.VLESSUser, 0)
