@@ -685,8 +685,14 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle') }}
       - name: Update version
         if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ needs.calculate_version.outputs.version }}
         run: |-
-          go run -v ./cmd/internal/update_android_version --ci
+          VERSION_FLAGS=(--ci)
+          if [[ "$VERSION" == *-v2bx.* ]]; then
+            VERSION_FLAGS+=(--nightly)
+          fi
+          go run -v ./cmd/internal/update_android_version "${VERSION_FLAGS[@]}"
       - name: Update nightly version
         if: github.event_name != 'workflow_dispatch'
         run: |-
@@ -775,7 +781,11 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle') }}
       - name: Build
         run: |-
-          go run -v ./cmd/internal/update_android_version --ci
+          VERSION_FLAGS=(--ci)
+          if [[ "$VERSION" == *-v2bx.* ]]; then
+            VERSION_FLAGS+=(--nightly)
+          fi
+          go run -v ./cmd/internal/update_android_version "${VERSION_FLAGS[@]}"
           mkdir clients/android/app/libs
           cp *.aar clients/android/app/libs
           cd clients/android
@@ -786,6 +796,7 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
           SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
+          VERSION: ${{ needs.calculate_version.outputs.version }}
   build_apple:
     name: Build Apple clients
     runs-on: macos-26
