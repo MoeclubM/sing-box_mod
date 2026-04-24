@@ -27,11 +27,22 @@ fi
 PROJECT=$(cd "$(dirname "$0")/.."; pwd)
 
 # Convert version to APK format:
-#   1.13.0-beta.8  -> 1.13.0_beta8-r0
-#   1.13.0-rc.3    -> 1.13.0_rc3-r0
-#   1.13.0         -> 1.13.0-r0
-APK_VERSION=$(echo "$VERSION" | sed -E 's/-([a-z]+)\.([0-9]+)/_\1\2/')
-APK_VERSION="${APK_VERSION}-r0"
+#   1.13.0-beta.8       -> 1.13.0_beta8-r0
+#   1.13.0-beta.8-v2bx.1 -> 1.13.0_beta8_p1-r0
+#   1.13.0-v2bx.1       -> 1.13.0_p1-r0
+#   1.13.0              -> 1.13.0-r0
+normalize_apk_version() {
+  local version="$1"
+
+  version=$(printf '%s' "$version" | sed -E 's/-((alpha|beta|pre|rc|cvs|svn|git|hg|p))\.([0-9]+)/_\1\3/g')
+
+  # apk only accepts a fixed set of suffix names, so map downstream tags to patch releases.
+  version=$(printf '%s' "$version" | sed -E 's/-[A-Za-z0-9]+\.([0-9]+)/_p\1/g; s/-[A-Za-z0-9]+/_p0/g')
+
+  printf '%s-r0' "$version"
+}
+
+APK_VERSION=$(normalize_apk_version "$VERSION")
 
 ROOT_DIR=$(mktemp -d)
 prepare_apk_root
