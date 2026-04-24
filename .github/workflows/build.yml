@@ -656,6 +656,28 @@ jobs:
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
           /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
+      - name: Prepare Android signing
+        env:
+          LOCAL_PROPERTIES_SECRET: ${{ secrets.LOCAL_PROPERTIES }}
+        run: |-
+          set -euo pipefail
+          if [[ -n "$LOCAL_PROPERTIES_SECRET" ]]; then
+            echo "LOCAL_PROPERTIES=$LOCAL_PROPERTIES_SECRET" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          rm -f clients/android/app/release.keystore
+          keytool -genkeypair -noprompt -v \
+            -keystore clients/android/app/release.keystore \
+            -storetype PKCS12 \
+            -storepass android \
+            -keypass android \
+            -alias ci-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -dname "CN=CI, OU=CI, O=CI, L=CI, S=CI, C=US"
+          SIGNING_PROPS="$(printf 'KEYSTORE_PASS=%s\nALIAS_NAME=%s\nALIAS_PASS=%s\n' 'android' 'ci-release' 'android' | base64 | tr -d '\n')"
+          echo "LOCAL_PROPERTIES=$SIGNING_PROPS" >> "$GITHUB_ENV"
       - name: Set tag
         run: |-
           git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
@@ -706,7 +728,6 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       - name: Prepare upload
         run: |-
           mkdir -p dist
@@ -752,6 +773,28 @@ jobs:
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
           /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
+      - name: Prepare Android signing
+        env:
+          LOCAL_PROPERTIES_SECRET: ${{ secrets.LOCAL_PROPERTIES }}
+        run: |-
+          set -euo pipefail
+          if [[ -n "$LOCAL_PROPERTIES_SECRET" ]]; then
+            echo "LOCAL_PROPERTIES=$LOCAL_PROPERTIES_SECRET" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          rm -f clients/android/app/release.keystore
+          keytool -genkeypair -noprompt -v \
+            -keystore clients/android/app/release.keystore \
+            -storetype PKCS12 \
+            -storepass android \
+            -keypass android \
+            -alias ci-release \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -dname "CN=CI, OU=CI, O=CI, L=CI, S=CI, C=US"
+          SIGNING_PROPS="$(printf 'KEYSTORE_PASS=%s\nALIAS_NAME=%s\nALIAS_PASS=%s\n' 'android' 'ci-release' 'android' | base64 | tr -d '\n')"
+          echo "LOCAL_PROPERTIES=$SIGNING_PROPS" >> "$GITHUB_ENV"
       - name: Set tag
         run: |-
           git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
@@ -794,7 +837,6 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
           SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
           VERSION: ${{ needs.calculate_version.outputs.version }}
   build_apple:
