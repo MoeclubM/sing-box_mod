@@ -1,6 +1,7 @@
 package certificate
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"io/fs"
@@ -22,12 +23,16 @@ var _ adapter.CertificateStore = (*Store)(nil)
 
 type Store struct {
 	access                    sync.RWMutex
+	updateAccess              sync.Mutex
+	closed                    bool
+	store                     string
 	systemPool                *x509.CertPool
 	currentPool               *x509.CertPool
 	certificate               string
 	certificatePaths          []string
 	certificateDirectoryPaths []string
 	watcher                   *fswatch.Watcher
+	platform                  storePlatform
 }
 
 func NewStore(ctx context.Context, logger logger.Logger, options option.CertificateOptions) (*Store, error) {
@@ -61,6 +66,7 @@ func NewStore(ctx context.Context, logger logger.Logger, options option.Certific
 		return nil, E.New("unknown certificate store: ", options.Store)
 	}
 	store := &Store{
+		store:                     options.Store,
 		systemPool:                systemPool,
 		certificate:               strings.Join(options.Certificate, "\n"),
 		certificatePaths:          options.CertificatePath,
@@ -111,10 +117,26 @@ func (s *Store) Start(stage adapter.StartStage) error {
 }
 
 func (s *Store) Close() error {
-	if s.watcher != nil {
-		return s.watcher.Close()
+	s.updateAccess.Lock()
+	defer s.updateAccess.Unlock()
+
+	if s.closed {
+		return nil
 	}
-	return nil
+	s.closed = true
+
+	watcher := s.watcher
+	s.watcher = nil
+
+	var closeErr error
+	if watcher != nil {
+		closeErr = watcher.Close()
+	}
+	platformErr := s.closePlatform()
+	if platformErr != nil {
+		closeErr = platformErr
+	}
+	return closeErr
 }
 
 func (s *Store) Pool() *x509.CertPool {
@@ -123,19 +145,34 @@ func (s *Store) Pool() *x509.CertPool {
 	return s.currentPool
 }
 
+func (s *Store) ExclusiveAnchors() bool {
+	return s.store != "" && s.store != C.CertificateStoreSystem
+}
+
 func (s *Store) update() error {
-	s.access.Lock()
-	defer s.access.Unlock()
+	s.updateAccess.Lock()
+	defer s.updateAccess.Unlock()
+	if s.closed {
+		return nil
+	}
 	var currentPool *x509.CertPool
 	if s.systemPool == nil {
 		currentPool = x509.NewCertPool()
 	} else {
 		currentPool = s.systemPool.Clone()
 	}
+	pemBuffer := new(bytes.Buffer)
+	switch s.store {
+	case C.CertificateStoreMozilla:
+		pemBuffer.WriteString(mozillaIncludedPEM)
+	case C.CertificateStoreChrome:
+		pemBuffer.WriteString(chromeIncludedPEM)
+	}
 	if s.certificate != "" {
 		if !currentPool.AppendCertsFromPEM([]byte(s.certificate)) {
 			return E.New("invalid certificate PEM strings")
 		}
+		appendPEMBlock(pemBuffer, s.certificate)
 	}
 	for _, path := range s.certificatePaths {
 		pemContent, err := os.ReadFile(path)
@@ -145,6 +182,7 @@ func (s *Store) update() error {
 		if !currentPool.AppendCertsFromPEM(pemContent) {
 			return E.New("invalid certificate PEM file: ", path)
 		}
+		appendPEMBlock(pemBuffer, string(pemContent))
 	}
 	var firstErr error
 	for _, directoryPath := range s.certificateDirectoryPaths {
@@ -157,16 +195,26 @@ func (s *Store) update() error {
 		}
 		for _, directoryEntry := range directoryEntries {
 			pemContent, err := os.ReadFile(filepath.Join(directoryPath, directoryEntry.Name()))
-			if err == nil {
-				currentPool.AppendCertsFromPEM(pemContent)
+			if err == nil && currentPool.AppendCertsFromPEM(pemContent) {
+				appendPEMBlock(pemBuffer, string(pemContent))
 			}
 		}
 	}
 	if firstErr != nil {
 		return firstErr
 	}
+	s.access.Lock()
+	defer s.access.Unlock()
 	s.currentPool = currentPool
-	return nil
+	return s.updatePlatformLocked(pemBuffer.Bytes())
+}
+
+func appendPEMBlock(buffer *bytes.Buffer, block string) {
+	existing := buffer.Bytes()
+	if len(existing) > 0 && existing[len(existing)-1] != '\n' {
+		buffer.WriteByte('\n')
+	}
+	buffer.WriteString(block)
 }
 
 func readUniqueDirectoryEntries(dir string) ([]fs.DirEntry, error) {
