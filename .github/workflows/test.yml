@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - dev-next
       - stable
       - testing
       - unstable
@@ -13,6 +14,7 @@ on:
       - '!.github/workflows/test.yml'
   pull_request:
     branches:
+      - dev-next
       - stable
       - testing
       - unstable
