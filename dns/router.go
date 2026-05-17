@@ -80,6 +80,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 	}
 	router.client = NewClient(ClientOptions{
 		Context:           ctx,
+		Timeout:           time.Duration(options.DNSClientOptions.Timeout),
 		DisableCache:      options.DNSClientOptions.DisableCache,
 		DisableExpire:     options.DNSClientOptions.DisableExpire,
 		OptimisticTimeout: optimisticTimeout,
@@ -314,6 +315,9 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 				if action.RewriteTTL != nil {
 					options.RewriteTTL = action.RewriteTTL
 				}
+				if action.Timeout > 0 {
+					options.Timeout = action.Timeout
+				}
 				if action.ClientSubnet.IsValid() {
 					options.ClientSubnet = action.ClientSubnet
 				}
@@ -327,6 +331,9 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 				}
 				if action.RewriteTTL != nil {
 					options.RewriteTTL = action.RewriteTTL
+				}
+				if action.Timeout > 0 {
+					options.Timeout = action.Timeout
 				}
 				if action.ClientSubnet.IsValid() {
 					options.ClientSubnet = action.ClientSubnet
@@ -354,6 +361,9 @@ func (r *Router) applyDNSRouteOptions(options *adapter.DNSQueryOptions, routeOpt
 	}
 	if routeOptions.RewriteTTL != nil {
 		options.RewriteTTL = routeOptions.RewriteTTL
+	}
+	if routeOptions.Timeout > 0 {
+		options.Timeout = routeOptions.Timeout
 	}
 	if routeOptions.ClientSubnet.IsValid() {
 		options.ClientSubnet = routeOptions.ClientSubnet
@@ -856,6 +866,9 @@ func (r *Router) ClearCache() {
 	if r.platformInterface != nil {
 		r.platformInterface.ClearDNSCache()
 	}
+	if r.dnsReverseMapping != nil {
+		r.dnsReverseMapping.Purge()
+	}
 }
 
 func (r *Router) LookupReverseMapping(ip netip.Addr) (string, bool) {
@@ -996,33 +1009,6 @@ func lookupDNSRuleSetMetadata(router adapter.Router, tag string, metadataOverrid
 		return adapter.RuleSetMetadata{}, E.New("rule-set not found: ", tag)
 	}
 	return ruleSet.Metadata(), nil
-}
-
-func referencedDNSRuleSetTags(rules []option.DNSRule) []string {
-	tagMap := make(map[string]bool)
-	var walkRule func(rule option.DNSRule)
-	walkRule = func(rule option.DNSRule) {
-		switch rule.Type {
-		case "", C.RuleTypeDefault:
-			for _, tag := range rule.DefaultOptions.RuleSet {
-				tagMap[tag] = true
-			}
-		case C.RuleTypeLogical:
-			for _, subRule := range rule.LogicalOptions.Rules {
-				walkRule(subRule)
-			}
-		}
-	}
-	for _, rule := range rules {
-		walkRule(rule)
-	}
-	tags := make([]string, 0, len(tagMap))
-	for tag := range tagMap {
-		if tag != "" {
-			tags = append(tags, tag)
-		}
-	}
-	return tags
 }
 
 func validateLegacyDNSModeDisabledRules(router adapter.Router, rules []option.DNSRule, metadataOverrides map[string]adapter.RuleSetMetadata) error {

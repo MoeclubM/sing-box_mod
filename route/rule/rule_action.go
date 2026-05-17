@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/sniff"
+	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
@@ -24,52 +25,54 @@ import (
 	"github.com/miekg/dns"
 )
 
+func newRuleActionRouteOptions(options option.RawRouteOptionsActionOptions) (RuleActionRouteOptions, error) {
+	spoof, spoofMethod, err := tlsspoof.ParseOptions(options.TLSSpoof, options.TLSSpoofMethod)
+	if err != nil {
+		return RuleActionRouteOptions{}, err
+	}
+	return RuleActionRouteOptions{
+		OverrideAddress:           M.ParseSocksaddrHostPort(options.OverrideAddress, 0),
+		OverridePort:              options.OverridePort,
+		NetworkStrategy:           (*C.NetworkStrategy)(options.NetworkStrategy),
+		FallbackDelay:             time.Duration(options.FallbackDelay),
+		UDPDisableDomainUnmapping: options.UDPDisableDomainUnmapping,
+		UDPConnect:                options.UDPConnect,
+		UDPTimeout:                time.Duration(options.UDPTimeout),
+		TLSFragment:               options.TLSFragment,
+		TLSFragmentFallbackDelay:  time.Duration(options.TLSFragmentFallbackDelay),
+		TLSRecordFragment:         options.TLSRecordFragment,
+		TLSSpoof:                  spoof,
+		TLSSpoofMethod:            spoofMethod,
+	}, nil
+}
+
 func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action option.RuleAction) (adapter.RuleAction, error) {
 	switch action.Action {
 	case "":
 		return nil, nil
 	case C.RuleActionTypeRoute:
+		routeOptions, err := newRuleActionRouteOptions(action.RouteOptions.RawRouteOptionsActionOptions)
+		if err != nil {
+			return nil, err
+		}
 		return &RuleActionRoute{
-			Outbound: action.RouteOptions.Outbound,
-			RuleActionRouteOptions: RuleActionRouteOptions{
-				OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptions.OverrideAddress, 0),
-				OverridePort:              action.RouteOptions.OverridePort,
-				NetworkStrategy:           (*C.NetworkStrategy)(action.RouteOptions.NetworkStrategy),
-				FallbackDelay:             time.Duration(action.RouteOptions.FallbackDelay),
-				UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
-				UDPConnect:                action.RouteOptions.UDPConnect,
-				TLSFragment:               action.RouteOptions.TLSFragment,
-				TLSFragmentFallbackDelay:  time.Duration(action.RouteOptions.TLSFragmentFallbackDelay),
-				TLSRecordFragment:         action.RouteOptions.TLSRecordFragment,
-			},
+			Outbound:               action.RouteOptions.Outbound,
+			RuleActionRouteOptions: routeOptions,
 		}, nil
 	case C.RuleActionTypeRouteOptions:
-		return &RuleActionRouteOptions{
-			OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptionsOptions.OverrideAddress, 0),
-			OverridePort:              action.RouteOptionsOptions.OverridePort,
-			NetworkStrategy:           (*C.NetworkStrategy)(action.RouteOptionsOptions.NetworkStrategy),
-			FallbackDelay:             time.Duration(action.RouteOptionsOptions.FallbackDelay),
-			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
-			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
-			UDPTimeout:                time.Duration(action.RouteOptionsOptions.UDPTimeout),
-			TLSFragment:               action.RouteOptionsOptions.TLSFragment,
-			TLSFragmentFallbackDelay:  time.Duration(action.RouteOptionsOptions.TLSFragmentFallbackDelay),
-			TLSRecordFragment:         action.RouteOptionsOptions.TLSRecordFragment,
-		}, nil
+		routeOptions, err := newRuleActionRouteOptions(option.RawRouteOptionsActionOptions(action.RouteOptionsOptions))
+		if err != nil {
+			return nil, err
+		}
+		return &routeOptions, nil
 	case C.RuleActionTypeBypass:
+		routeOptions, err := newRuleActionRouteOptions(action.BypassOptions.RawRouteOptionsActionOptions)
+		if err != nil {
+			return nil, err
+		}
 		return &RuleActionBypass{
-			Outbound: action.BypassOptions.Outbound,
-			RuleActionRouteOptions: RuleActionRouteOptions{
-				OverrideAddress:           M.ParseSocksaddrHostPort(action.BypassOptions.OverrideAddress, 0),
-				OverridePort:              action.BypassOptions.OverridePort,
-				NetworkStrategy:           (*C.NetworkStrategy)(action.BypassOptions.NetworkStrategy),
-				FallbackDelay:             time.Duration(action.BypassOptions.FallbackDelay),
-				UDPDisableDomainUnmapping: action.BypassOptions.UDPDisableDomainUnmapping,
-				UDPConnect:                action.BypassOptions.UDPConnect,
-				TLSFragment:               action.BypassOptions.TLSFragment,
-				TLSFragmentFallbackDelay:  time.Duration(action.BypassOptions.TLSFragmentFallbackDelay),
-				TLSRecordFragment:         action.BypassOptions.TLSRecordFragment,
-			},
+			Outbound:               action.BypassOptions.Outbound,
+			RuleActionRouteOptions: routeOptions,
 		}, nil
 	case C.RuleActionTypeDirect:
 		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
@@ -108,6 +111,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 	case C.RuleActionTypeResolve:
 		return &RuleActionResolve{
 			Server:                 action.ResolveOptions.Server,
+			Timeout:                time.Duration(action.ResolveOptions.Timeout),
 			Strategy:               C.DomainStrategy(action.ResolveOptions.Strategy),
 			DisableCache:           action.ResolveOptions.DisableCache,
 			DisableOptimisticCache: action.ResolveOptions.DisableOptimisticCache,
@@ -128,6 +132,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
+				Timeout:                time.Duration(action.RouteOptions.Timeout),
 				DisableCache:           action.RouteOptions.DisableCache,
 				DisableOptimisticCache: action.RouteOptions.DisableOptimisticCache,
 				RewriteTTL:             action.RouteOptions.RewriteTTL,
@@ -139,6 +144,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
+				Timeout:                time.Duration(action.RouteOptions.Timeout),
 				DisableCache:           action.RouteOptions.DisableCache,
 				DisableOptimisticCache: action.RouteOptions.DisableOptimisticCache,
 				RewriteTTL:             action.RouteOptions.RewriteTTL,
@@ -150,6 +156,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 	case C.RuleActionTypeRouteOptions:
 		return &RuleActionDNSRouteOptions{
 			Strategy:               C.DomainStrategy(action.RouteOptionsOptions.Strategy),
+			Timeout:                time.Duration(action.RouteOptionsOptions.Timeout),
 			DisableCache:           action.RouteOptionsOptions.DisableCache,
 			DisableOptimisticCache: action.RouteOptionsOptions.DisableOptimisticCache,
 			RewriteTTL:             action.RouteOptionsOptions.RewriteTTL,
@@ -221,6 +228,8 @@ type RuleActionRouteOptions struct {
 	TLSFragment               bool
 	TLSFragmentFallbackDelay  time.Duration
 	TLSRecordFragment         bool
+	TLSSpoof                  string
+	TLSSpoofMethod            tlsspoof.Method
 }
 
 func (r *RuleActionRouteOptions) Type() string {
@@ -268,6 +277,10 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 	}
 	if r.TLSRecordFragment {
 		descriptions = append(descriptions, "tls-record-fragment")
+	}
+	if r.TLSSpoof != "" {
+		descriptions = append(descriptions, F.ToString("tls-spoof=", r.TLSSpoof))
+		descriptions = append(descriptions, F.ToString("tls-spoof-method=", r.TLSSpoofMethod.String()))
 	}
 	return descriptions
 }
@@ -320,6 +333,9 @@ func formatDNSRouteAction(action string, server string, options RuleActionDNSRou
 	if options.RewriteTTL != nil {
 		descriptions = append(descriptions, F.ToString("rewrite-ttl=", *options.RewriteTTL))
 	}
+	if options.Timeout > 0 {
+		descriptions = append(descriptions, F.ToString("timeout=", options.Timeout.String()))
+	}
 	if options.ClientSubnet.IsValid() {
 		descriptions = append(descriptions, F.ToString("client-subnet=", options.ClientSubnet))
 	}
@@ -328,6 +344,7 @@ func formatDNSRouteAction(action string, server string, options RuleActionDNSRou
 
 type RuleActionDNSRouteOptions struct {
 	Strategy               C.DomainStrategy
+	Timeout                time.Duration
 	DisableCache           bool
 	DisableOptimisticCache bool
 	RewriteTTL             *uint32
@@ -348,6 +365,9 @@ func (r *RuleActionDNSRouteOptions) String() string {
 	}
 	if r.RewriteTTL != nil {
 		descriptions = append(descriptions, F.ToString("rewrite-ttl=", *r.RewriteTTL))
+	}
+	if r.Timeout > 0 {
+		descriptions = append(descriptions, F.ToString("timeout=", r.Timeout.String()))
 	}
 	if r.ClientSubnet.IsValid() {
 		descriptions = append(descriptions, F.ToString("client-subnet=", r.ClientSubnet))
@@ -522,6 +542,7 @@ func (r *RuleActionSniff) String() string {
 
 type RuleActionResolve struct {
 	Server                 string
+	Timeout                time.Duration
 	Strategy               C.DomainStrategy
 	DisableCache           bool
 	DisableOptimisticCache bool
@@ -549,6 +570,9 @@ func (r *RuleActionResolve) String() string {
 	}
 	if r.RewriteTTL != nil {
 		options = append(options, F.ToString("rewrite_ttl=", *r.RewriteTTL))
+	}
+	if r.Timeout > 0 {
+		options = append(options, F.ToString("timeout=", r.Timeout.String()))
 	}
 	if r.ClientSubnet.IsValid() {
 		options = append(options, F.ToString("client_subnet=", r.ClientSubnet))

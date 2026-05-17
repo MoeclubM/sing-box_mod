@@ -48,6 +48,7 @@ func (o *DNSOptions) UnmarshalJSONContext(ctx context.Context, content []byte) e
 
 type DNSClientOptions struct {
 	Strategy         DomainStrategy        `json:"strategy,omitempty"`
+	Timeout          badoption.Duration    `json:"timeout,omitempty"`
 	DisableCache     bool                  `json:"disable_cache,omitempty"`
 	DisableExpire    bool                  `json:"disable_expire,omitempty"`
 	IndependentCache bool                  `json:"independent_cache,omitempty"`
@@ -153,7 +154,8 @@ type RawLocalDNSServerOptions struct {
 
 type LocalDNSServerOptions struct {
 	RawLocalDNSServerOptions
-	PreferGo bool `json:"prefer_go,omitempty"`
+	PreferGo       bool                       `json:"prefer_go,omitempty"`
+	NeighborDomain badoption.Listable[string] `json:"neighbor_domain,omitempty"`
 }
 
 type RemoteDNSServerOptions struct {
@@ -181,4 +183,9 @@ type FakeIPDNSServerOptions struct {
 type DHCPDNSServerOptions struct {
 	LocalDNSServerOptions
 	Interface string `json:"interface,omitempty"`
+}
+
+type MDNSDNSServerOptions struct {
+	LocalDNSServerOptions
+	Interface badoption.Listable[string] `json:"interface,omitempty"`
 }
