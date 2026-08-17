@@ -106,9 +106,11 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			return nil, E.Cause(err, "invalid uuid for user ", index)
 		}
 		userList = append(userList, index)
-		userNameList = append(userNameList, user.Name)
+		userNameList = append(userNameList, user.UUID)
 		userUUIDList = append(userUUIDList, userUUID)
 		userPasswordList = append(userPasswordList, user.Password)
+		uidToUuid[index] = user.UUID
+		uuidToUid[user.UUID] = index
 	}
 	service.UpdateUsers(userList, userUUIDList, userPasswordList)
 	inbound.server = service

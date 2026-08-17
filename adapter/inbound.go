@@ -86,6 +86,7 @@ type InboundContext struct {
 
 	DestinationAddresses                []netip.Addr
 	DNSResponse                         *dns.Msg
+	NamedDNSResponses                   map[string]*dns.Msg
 	DestinationAddressMatchFromResponse bool
 	SourceGeoIPCode                     string
 	GeoIPCode                           string
@@ -93,7 +94,10 @@ type InboundContext struct {
 	SourceMACAddress                    net.HardwareAddr
 	SourceHostname                      string
 	QueryType                           uint16
+	QueryClientSubnet                   netip.Prefix
+	QueryDNSSEC                         bool
 	FakeIP                              bool
+	PreMatch                            bool
 
 	// rule cache
 

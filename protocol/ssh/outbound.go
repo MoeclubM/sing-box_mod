@@ -23,6 +23,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service/filemanager"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -88,7 +89,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			privateKey = []byte(strings.Join(options.PrivateKey, "\n"))
 		} else {
 			var err error
-			privateKey, err = os.ReadFile(os.ExpandEnv(options.PrivateKeyPath))
+			privateKey, err = filemanager.ReadFile(ctx, os.ExpandEnv(options.PrivateKeyPath))
 			if err != nil {
 				return nil, E.Cause(err, "read private key")
 			}
@@ -109,7 +110,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		for _, hostKey := range options.HostKey {
 			key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(hostKey))
 			if err != nil {
-				return nil, E.New("parse host key ", key)
+				return nil, E.Cause(err, "parse host key: ", hostKey)
 			}
 			outbound.hostKey = append(outbound.hostKey, key)
 		}
