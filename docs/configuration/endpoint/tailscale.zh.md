@@ -28,7 +28,6 @@ icon: material/new-box
   "state_directory": "",
   "auth_key": "",
   "control_url": "",
-  "control_http_client": {}, // 或 ""
   "ephemeral": false,
   "hostname": "",
   "accept_routes": false,
@@ -225,9 +224,9 @@ UDP NAT 过期时间。
 
 ### 拨号字段
 
-!!! failure "已在 sing-box 1.14.0 废弃"
+!!! note
 
-    Tailscale 端点中的拨号字段已在 sing-box 1.14.0 废弃且将在 sing-box 1.16.0 中被移除，请使用 `control_http_client` 代替。
+    Tailscale 端点中的拨号字段仅控制它如何连接到控制平面，与实际连接无关。
 
 参阅 [拨号字段](/zh/configuration/shared/dial/) 了解详情。
 

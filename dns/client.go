@@ -303,11 +303,6 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 				c.cacheLock.Delete(cacheKey)
 				close(cond)
 			}
-		} else {
-			defer func() {
-				c.cacheLock.Delete(cacheKey)
-				close(cond)
-			}()
 		}
 		response, ttl, isStale := c.loadResponse(cacheKey)
 		if response != nil {

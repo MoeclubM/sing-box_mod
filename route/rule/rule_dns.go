@@ -32,7 +32,7 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 			return nil, E.New("`race` requires `match_response`")
 		}
 		switch options.DefaultOptions.Action {
-		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
+		case "", C.RuleActionTypeRoute:
 			if options.DefaultOptions.RouteOptions.Server == "" && checkServer {
 				return nil, E.New("missing server field")
 			}
@@ -54,7 +54,7 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 			return nil, err
 		}
 		switch options.LogicalOptions.Action {
-		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
+		case "", C.RuleActionTypeRoute:
 			if options.LogicalOptions.RouteOptions.Server == "" && checkServer {
 				return nil, E.New("missing server field")
 			}

@@ -20,6 +20,8 @@ func (s *Service) Start(stage adapter.StartStage) error {
 }
 
 func (s *Service) Close() error {
-	s.stopTimer()
+	if s.adaptiveTimer != nil {
+		s.adaptiveTimer.stop()
+	}
 	return nil
 }

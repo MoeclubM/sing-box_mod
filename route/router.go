@@ -162,7 +162,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 		r.ruleSetUpdater = R.NewRuleSetUpdater(r.ctx, r.ruleSets)
 		r.network.Initialize(r.ruleSets)
 		needFindProcess := r.needFindProcess
-		needFindNeighbor := r.needFindNeighbor
 		for _, ruleSet := range r.ruleSets {
 			metadata := ruleSet.Metadata()
 			if metadata.ContainsProcessRule {
@@ -196,36 +195,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			processCache := common.Must1(freelru.New[processCacheKey, processCacheEntry](256, maphash.NewHasher[processCacheKey]().Hash32, true))
 			processCache.SetLifetime(200 * time.Millisecond)
 			r.processCache = processCache
-		}
-		r.needFindNeighbor = needFindNeighbor
-		if needFindNeighbor {
-			if r.platformInterface != nil && r.platformInterface.UsePlatformNeighborResolver() {
-				monitor.Start("initialize neighbor resolver")
-				resolver := newPlatformNeighborResolver(r.logger, r.platformInterface)
-				err := resolver.Start()
-				monitor.Finish()
-				if err != nil {
-					r.logger.Error(E.Cause(err, "start neighbor resolver"))
-				} else {
-					r.neighborResolver = resolver
-				}
-			} else {
-				monitor.Start("initialize neighbor resolver")
-				resolver, err := newNeighborResolver(r.logger, r.leaseFiles)
-				monitor.Finish()
-				if err != nil {
-					if err != os.ErrInvalid {
-						r.logger.Error(E.Cause(err, "create neighbor resolver"))
-					}
-				} else {
-					err = resolver.Start()
-					if err != nil {
-						r.logger.Error(E.Cause(err, "start neighbor resolver"))
-					} else {
-						r.neighborResolver = resolver
-					}
-				}
-			}
 		}
 	case adapter.StartStatePostStart:
 		for i, rule := range r.rules {

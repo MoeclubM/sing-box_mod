@@ -4,7 +4,6 @@ package tailscale
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"net/netip"

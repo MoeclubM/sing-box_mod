@@ -25,8 +25,6 @@ import (
 	"github.com/sagernet/sing/service/filemanager"
 )
 
-var sOOMReporter oomkiller.OOMReporter
-
 func baseContext(platformInterface PlatformInterface) context.Context {
 	dnsRegistry := include.DNSTransportRegistry()
 	if platformInterface != nil {

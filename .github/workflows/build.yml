@@ -355,10 +355,6 @@ jobs:
           echo "PKG_VERSION=${PKG_VERSION}" >> "${GITHUB_ENV}"
       - name: Package DEB
         if: matrix.debian != ''
-        env:
-          GPG_KEY: ${{ secrets.GPG_KEY }}
-          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           set -xeuo pipefail
           sudo gem install fpm
@@ -376,10 +372,6 @@ jobs:
           debsigs --sign=origin -k ${{ secrets.GPG_KEY_ID }} --gpgopts '--pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}"' dist/*.deb
       - name: Package RPM
         if: matrix.rpm != ''
-        env:
-          GPG_KEY: ${{ secrets.GPG_KEY }}
-          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |-
           set -xeuo pipefail
           sudo gem install fpm
@@ -390,11 +382,14 @@ jobs:
             -p "dist/sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.rpm }}.rpm" \
             --architecture ${{ matrix.rpm }} \
             dist/sing-box=/usr/bin/sing-box
-          if [[ -n "$GPG_KEY" && -n "$GPG_KEY_ID" ]]; then
-            printf '%%_gpg_name %s\n%%_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase "%s"\n' "$GPG_KEY_ID" "$GPG_PASSPHRASE" > "$HOME/.rpmmacros"
-            printf '%s\n' "$GPG_KEY" | gpg --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --import
-            rpmsign --addsign dist/*.rpm
-          fi
+          cat > $HOME/.rpmmacros <<EOF
+          %_gpg_name ${{ secrets.GPG_KEY_ID }}
+          %_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase ${{ secrets.GPG_PASSPHRASE }}
+          EOF
+          gpg --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" --import <<EOF
+          ${{ secrets.GPG_KEY }}
+          EOF
+          rpmsign --addsign dist/*.rpm
       - name: Package Pacman
         if: matrix.pacman != ''
         run: |-
@@ -817,14 +812,8 @@ jobs:
           cache-provider: basic
       - name: Update version
         if: github.event_name == 'workflow_dispatch'
-        env:
-          VERSION: ${{ needs.calculate_version.outputs.version }}
         run: |-
-          VERSION_FLAGS=(--ci)
-          if [[ "$VERSION" == *-v2bx.* ]]; then
-            VERSION_FLAGS+=(--nightly)
-          fi
-          go run -v ./cmd/internal/update_android_version "${VERSION_FLAGS[@]}"
+          go run -v ./cmd/internal/update_android_version --ci
       - name: Update nightly version
         if: github.event_name != 'workflow_dispatch'
         run: |-
@@ -837,6 +826,7 @@ jobs:
           ./gradlew --build-cache --parallel ${{ matrix.task }}
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       - name: Prepare upload
         run: |-
           mkdir -p dist

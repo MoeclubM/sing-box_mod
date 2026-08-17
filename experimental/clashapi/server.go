@@ -22,7 +22,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/cleanup"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/observable"
@@ -53,7 +52,6 @@ type Server struct {
 	trafficManager *trafficcontrol.Manager
 	urlTestHistory *urltest.HistoryStorage
 	logDebug       bool
-	cleaner        *cleanup.Cleaner
 
 	mode             string
 	modeList         []string
@@ -95,7 +93,6 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		externalController:       options.ExternalController != "",
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
-		cleaner:                  cleanup.Add(trafficManager.Clear),
 	}
 	defaultMode := "Rule"
 	if options.DefaultMode != "" {

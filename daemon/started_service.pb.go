@@ -338,52 +338,6 @@ func (x *Version) GetApiVersion() int32 {
 	return 0
 }
 
-type DebugCrashRequest_Type int32
-
-const (
-	DebugCrashRequest_GO     DebugCrashRequest_Type = 0
-	DebugCrashRequest_NATIVE DebugCrashRequest_Type = 1
-)
-
-// Enum value maps for DebugCrashRequest_Type.
-var (
-	DebugCrashRequest_Type_name = map[int32]string{
-		0: "GO",
-		1: "NATIVE",
-	}
-	DebugCrashRequest_Type_value = map[string]int32{
-		"GO":     0,
-		"NATIVE": 1,
-	}
-)
-
-func (x DebugCrashRequest_Type) Enum() *DebugCrashRequest_Type {
-	p := new(DebugCrashRequest_Type)
-	*p = x
-	return p
-}
-
-func (x DebugCrashRequest_Type) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DebugCrashRequest_Type) Descriptor() protoreflect.EnumDescriptor {
-	return file_daemon_started_service_proto_enumTypes[3].Descriptor()
-}
-
-func (DebugCrashRequest_Type) Type() protoreflect.EnumType {
-	return &file_daemon_started_service_proto_enumTypes[3]
-}
-
-func (x DebugCrashRequest_Type) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DebugCrashRequest_Type.Descriptor instead.
-func (DebugCrashRequest_Type) EnumDescriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{16, 0}
-}
-
 type ServiceStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        ServiceStatus_Type     `protobuf:"varint,1,opt,name=status,proto3,enum=daemon.ServiceStatus_Type" json:"status,omitempty"`

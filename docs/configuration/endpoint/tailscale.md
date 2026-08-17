@@ -28,7 +28,6 @@ icon: material/new-box
   "state_directory": "",
   "auth_key": "",
   "control_url": "",
-  "control_http_client": {}, // or ""
   "ephemeral": false,
   "hostname": "",
   "accept_routes": false,
@@ -227,9 +226,9 @@ is.
 
 ### Dial Fields
 
-!!! failure "Deprecated in sing-box 1.14.0"
+!!! note
 
-    Dial Fields in Tailscale endpoints are deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0, use `control_http_client` instead.
+    Dial Fields in Tailscale endpoints only control how it connects to the control plane and have nothing to do with actual connections.
 
 See [Dial Fields](/configuration/shared/dial/) for details.
 
