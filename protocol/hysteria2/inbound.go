@@ -211,11 +211,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		return nil, err
 	}
 	userList := make([]int, 0, len(options.Users))
-	userNameList := make([]string, 0, len(options.Users))
 	userPasswordList := make([]string, 0, len(options.Users))
 	for index, user := range options.Users {
 		userList = append(userList, index)
-		userNameList = append(userNameList, user.Name)
 		userPasswordList = append(userPasswordList, user.Password)
 	}
 	hysteriaService.UpdateUsers(userList, userPasswordList)
